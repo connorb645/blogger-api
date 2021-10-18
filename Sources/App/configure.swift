@@ -6,11 +6,15 @@ import FluentPostgresDriver
 public func configure(_ app: Application) throws {
     // uncomment to serve files from /Public folder
     // app.middleware.use(FileMiddleware(publicDirectory: app.directory.publicDirectory))
-    let hostname = Environment.get("HN") ?? ""
-    let username = Environment.get("DBUN") ?? ""
-    let password = Environment.get("DBP") ?? ""
-    let database = Environment.get("DB") ?? ""
-    app.databases.use(.postgres(hostname: hostname, username: username, password: password, database: database), as: .psql)
+    if let url = Environment.get("DATABASE_URL") {
+        try app.databases.use(.postgres(url: url), as: .psql)
+    } else {
+        let hostname = Environment.get("HN") ?? ""
+        let username = Environment.get("DBUN") ?? ""
+        let password = Environment.get("DBP") ?? ""
+        let database = Environment.get("DB") ?? ""
+        app.databases.use(.postgres(hostname: hostname, username: username, password: password, database: database), as: .psql)
+    }
 
     app.migrations.add(CreateUser())
     app.migrations.add(CreateBlogPost())
