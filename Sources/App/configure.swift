@@ -6,8 +6,10 @@ import FluentPostgresDriver
 public func configure(_ app: Application) throws {
     // uncomment to serve files from /Public folder
     // app.middleware.use(FileMiddleware(publicDirectory: app.directory.publicDirectory))
-    if let url = Environment.get("DATABASE_URL") {
-        try app.databases.use(.postgres(url: url), as: .psql)
+    
+    if let url = Environment.get("DATABASE_URL"), var config = PostgresConfiguration(url: url) {
+        config.tlsConfiguration = .makeClientConfiguration()
+        app.databases.use(.postgres(configuration: config), as: .psql)
     } else {
         let hostname = Environment.get("HN") ?? ""
         let username = Environment.get("DBUN") ?? ""
