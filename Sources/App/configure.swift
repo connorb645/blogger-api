@@ -8,7 +8,7 @@ public func configure(_ app: Application) throws {
     // app.middleware.use(FileMiddleware(publicDirectory: app.directory.publicDirectory))
     
     if let url = Environment.get("DATABASE_URL"), var config = PostgresConfiguration(url: url) {
-        config.tlsConfiguration = .makeClientConfiguration()
+        config.tlsConfiguration = .forClient(certificateVerification: .none)
         app.databases.use(.postgres(configuration: config), as: .psql)
     } else {
         let hostname = Environment.get("HN") ?? ""
