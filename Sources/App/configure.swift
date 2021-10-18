@@ -23,7 +23,6 @@ public func configure(_ app: Application) throws {
     // We can run the autoRevert if we create or edit a CREATION migration
 //    try app.autoRevert().wait()
     try app.autoMigrate().wait()
-    
 //    app.http.server.configuration.hostname = "127.0.0.1"
 //    app.http.server.configuration.port = 8090
     // register routes
