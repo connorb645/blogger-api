@@ -4,11 +4,12 @@ import FluentPostgresDriver
 
 // configures your application
 public func configure(_ app: Application) throws {
-    // uncomment to serve files from /Public folder
-    // app.middleware.use(FileMiddleware(publicDirectory: app.directory.publicDirectory))
+    
+//    app.middleware.use(FileMiddleware(publicDirectory: app.directory.publicDirectory))
     
     if let url = Environment.get("DATABASE_URL"), var config = PostgresConfiguration(url: url) {
-        config.tlsConfiguration = .forClient(certificateVerification: .none)
+        config.tlsConfiguration = .makeClientConfiguration()
+        config.tlsConfiguration?.certificateVerification = .none
         app.databases.use(.postgres(configuration: config), as: .psql)
     } else {
         let hostname = Environment.get("HN") ?? ""
@@ -19,14 +20,13 @@ public func configure(_ app: Application) throws {
     }
 
     app.migrations.add(CreateUser())
-    app.migrations.add(CreateBlogPost())
+    app.migrations.add(CreateDocument())
+    app.migrations.add(CreateArticle())
     app.migrations.add(CreateToken())
     
     // We can run the autoRevert if we create or edit a CREATION migration
 //    try app.autoRevert().wait()
     try app.autoMigrate().wait()
-//    app.http.server.configuration.hostname = "127.0.0.1"
-//    app.http.server.configuration.port = 8090
-    // register routes
+
     try routes(app)
 }

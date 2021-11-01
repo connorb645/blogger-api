@@ -1,5 +1,5 @@
 //
-//  File.swift
+//  SessionController.swift
 //  
 //
 //  Created by Connor Black on 08/10/2021.
@@ -19,20 +19,22 @@ struct SessionController: RouteCollection {
         // current user
         let bearerAuthProtected = sessionRoute.grouped(Token.authenticator())
         bearerAuthProtected.get("current-user", use: current)
+        bearerAuthProtected.get("token", use: token)
     }
     
     private func signup(req: Request) throws -> EventLoopFuture<NewSession> {
         try UserSignup.validate(content: req)
-        let userSignup = try req.content.decode(UserSignup.self)
+        var userSignup = try req.content.decode(UserSignup.self)
+        
+        userSignup.normalize()
         
         let user = try User.create(from: userSignup)
         var token: Token!
         
-        return userExists(userSignup.username, req: req)
+        return userExists(userSignup.emailAddress, req: req)
             .flatMap { exists in
                 guard !exists else {
-                    #warning("We are going to want a more specific user error here.")
-                    return req.eventLoop.future(error: Abort(.internalServerError))
+                    return req.eventLoop.future(error: UserError.alreadyExists)
                 }
                 
                 return user.save(on: req.db)
@@ -62,23 +64,32 @@ struct SessionController: RouteCollection {
         try req.auth.require(User.self).asPublic()
     }
     
-    private func userExists(_ username: String, req: Request) -> EventLoopFuture<Bool> {
+    private func token(req: Request) throws -> Token.Public {
+        return try req.auth.require(Token.self).asPublic()
+    }
+    
+    private func userExists(_ emailAddress: String, req: Request) -> EventLoopFuture<Bool> {
         User.query(on: req.db)
-            .filter(\.$username == username)
+            .filter(\.$emailAddress == emailAddress)
             .first()
             .map { $0 != nil }
     }
 }
 
 struct UserSignup: Content {
-    let username: String
+    var emailAddress: String
     let password: String
     let firstName: String
     let secondName: String
+    
+    mutating func normalize() {
+        emailAddress = emailAddress.lowercased()
+    }
 }
+
 extension UserSignup: Validatable {
     static func validations(_ validations: inout Validations) {
-        validations.add("username", as: String.self, is: !.empty)
+        validations.add("emailAddress", as: String.self, is: !.empty)
         validations.add("password", as: String.self, is: .count(6...))
     }
 }

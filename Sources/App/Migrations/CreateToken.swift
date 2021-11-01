@@ -1,5 +1,5 @@
 //
-//  File.swift
+//  CreateToken.swift
 //  
 //
 //  Created by Connor Black on 30/09/2021.

@@ -1,5 +1,5 @@
 //
-//  File.swift
+//  Token.swift
 //  
 //
 //  Created by Connor Black on 30/09/2021.
@@ -15,6 +15,13 @@ enum SessionSource: Int, Content {
 }
 
 final class Token: Model {
+    
+    struct Public: Content {
+        let value: String
+        let expiresAt: Date?
+        let createdAt: Date?
+    }
+    
     static let schema = Tables.tokens.rawValue
     
     @ID(key: .id)
@@ -65,5 +72,13 @@ extension Token: ModelTokenAuthenticatable {
             return true
         }
         return expiryDate > Date()
+    }
+}
+
+extension Token {
+    func asPublic() -> Token.Public {
+        Token.Public(value: self.value,
+                     expiresAt: self.expiresAt,
+                     createdAt: self.createdAt)
     }
 }

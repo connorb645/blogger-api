@@ -1,5 +1,5 @@
 //
-//  File.swift
+//  CreateUser.swift
 //  
 //
 //  Created by Connor Black on 29/09/2021.
@@ -15,8 +15,8 @@ struct CreateUser: Migration {
             .id()
             .field(User.Fields.firstName.rawValue, .string, .required)
             .field(User.Fields.secondName.rawValue, .string, .required)
-            .field(User.Fields.username.rawValue, .string, .required)
-            .unique(on: User.Fields.username.rawValue)
+            .field(User.Fields.emailAddress.rawValue, .string, .required)
+            .unique(on: User.Fields.emailAddress.rawValue)
             .field(User.Fields.passwordHash.rawValue, .string, .required)
             .field(User.Fields.createdAt.rawValue, .datetime, .required)
             .field(User.Fields.updatedAt.rawValue, .datetime, .required)

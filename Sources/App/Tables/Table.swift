@@ -8,7 +8,8 @@
 import Foundation
 
 public enum Tables: String {
-    case blogPosts = "blog_posts"
+    case articles = "articles"
     case users = "users"
     case tokens = "tokens"
+    case documents = "documents"
 }
