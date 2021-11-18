@@ -26,13 +26,14 @@ public func configure(_ app: Application) throws {
     }
     
     print(publicUrl)
+    print(app.baseUrl)
     
-    app.fileStorages.use(.local(publicUrl: publicUrl,
+    
+    app.fileStorages.use(.local(publicUrl: app.baseUrl,
                                 publicPath: app.directory.publicDirectory,
                                 workDirectory: "assets"), as: .local)
 
     app.migrations.add(CreateUser())
-    app.migrations.add(CreateDocument())
     app.migrations.add(CreateArticle())
     app.migrations.add(CreateToken())
     
@@ -41,4 +42,15 @@ public func configure(_ app: Application) throws {
     try app.autoMigrate().wait()
 
     try routes(app)
+}
+
+extension Application {
+    #warning("Untested when running from Heroku environments")
+    var baseUrl: String {
+        let configuration = http.server.configuration
+        let scheme = configuration.tlsConfiguration == nil ? "http" : "https"
+        let host = configuration.hostname
+        let port = configuration.port
+        return "\(scheme)://\(host):\(port)"
+    }
 }

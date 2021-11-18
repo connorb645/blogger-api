@@ -20,30 +20,30 @@ struct UserController: RouteCollection {
     }
     
     private func current(req: Request) throws -> User.Public {
-        try req.auth.require(User.self).asPublic()
+        try req.auth.require(User.self).publicRepresentation
     }
     
-    private func getUser(req: Request) throws -> EventLoopFuture<User.Public> {
-        return User.find(req.parameters.get("id"), on: req.db)
-            .unwrap(or: Abort(.notFound))
-            .flatMapThrowing { try $0.asPublic() }
+    private func getUser(req: Request) async throws -> User.Public {
+        let user = try await User.find(req.parameters.get("id"), on: req.db)
+        
+        guard let user = user else {
+            throw Abort(.notFound)
+        }
+        
+        return try user.publicRepresentation
     }
     
-    private func getUsersArticles(req: Request) throws -> EventLoopFuture<[Article.Public]> {
+    private func getUsersArticles(req: Request) async throws -> [Article.Public] {
         
         guard let userId = req.parameters.get("id"),
               let userUUID = UUID(userId) else {
             throw Abort(.notFound)
         }
             
-        return Article.query(on: req.db)
+        return try await Article.query(on: req.db)
             .filter(\.$author.$id == userUUID)
             .all()
-            .flatMapThrowing { articles in
-                try articles.map {
-                    try $0.asPublic()
-                }
-            }
-        
+            .get()
+            .map { try $0.publicRepresentation }
     }
 }

@@ -11,65 +11,59 @@ import Fluent
 
 final class Article: Model, Content {
     
-    struct Creation: Content {
-        var title: String
-        var contentId: UUID
-    }
-    
-    struct Public: Content {
-        var id: UUID
-        var title: String
-        var authorId: UUID
-        var contentId: UUID
-    }
-    
     static let schema = Tables.articles.rawValue
     
     @ID(key: .id)
     var id: UUID?
     
-    @Parent(key: Fields.authorId.rawValue)
+    @Parent(key: "author_id")
     var author: User
     
-    @Field(key: Fields.title.rawValue)
+    @Field(key: "title")
     var title: String
     
-    @Parent(key: Fields.contentId.rawValue)
-    var content: Document
+    @Field(key: "content_key")
+    var contentKey: String
+    
+    @Timestamp(key: "created_at", on: .create)
+    var createdAt: Date?
+    
+    @Timestamp(key: "updated_at", on: .update)
+    var updatedAt: Date?
     
     init() {}
     
     init(id: UUID? = nil,
          authorId: User.IDValue,
          title: String,
-         contentId: Document.IDValue) {
+         contentKey: String) {
         self.id = id
         self.title = title
         self.$author.id = authorId
-        self.$content.id = contentId
+        self.contentKey = contentKey
     }
 }
 
-extension Article {
-    static func create(with blogPostCreation: Article.Creation,
-                       authorId: UUID) throws -> Article {
-        Article(authorId: authorId,
-                title: blogPostCreation.title,
-                contentId: blogPostCreation.contentId)
+extension Article: PublicRepresentable {
+    var publicRepresentation: Public {
+        get throws {
+            .init(id: try requireID(),
+                  title: title,
+                  authorId: $author.id,
+                  contentKey: contentKey,
+                  createdAt: createdAt,
+                  updatedAt: updatedAt)
+        }
     }
     
-    func asPublic() throws -> Article.Public {
-        Article.Public(id: try requireID(),
-                       title: title,
-                       authorId: $author.id,
-                       contentId: $content.id)
-    }
-}
-
-extension Article {
-    enum Fields: FieldKey {
-        case title = "title"
-        case authorId = "author_id"
-        case contentId = "content_id"
+    typealias T = Public
+    
+    struct Public: Content {
+        var id: UUID
+        var title: String
+        var authorId: UUID
+        var contentKey: String
+        var createdAt: Date?
+        var updatedAt: Date?
     }
 }

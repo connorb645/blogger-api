@@ -1,0 +1,33 @@
+# Deploying to Heroku
+
+There are two enironments:
+- heroku-dev - https://blogger-cloud-dev.herokuapp.com/
+- heroku-prod - https://blogger-cloud.herokuapp.com/
+
+## Deploy to Production
+
+In order to deploy to production run:
+
+git push heroku-prod main
+
+## Deploy to Develop
+
+In order to deploy to develop run:
+
+git push heroku-dev develop:main
+
+# Reading from the databases
+
+### Run in a web app (pgweb):
+
+- prod: heroku config:get DATABASE_URL --remote heroku-prod | xargs pgweb --url
+- dev: heroku config:get DATABASE_URL --remote heroku-dev | xargs pgweb --url
+
+### Run in any mac app:
+
+- prod: heroku config:get DATABASE_URL --remote heroku-prod
+- prod: heroku config:get DATABASE_URL --remote heroku-dev
+
+In mac app open database with URL -> (output of above)
+
+Enusre SSL is enabled.

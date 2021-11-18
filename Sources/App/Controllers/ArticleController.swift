@@ -19,64 +19,73 @@ struct ArticleController: RouteCollection {
         
         bearerAuthProtected.post(use: createArticle)
         bearerAuthProtected.get("mine", use: getMyArticles)
-        
     }
     
-    private func createArticle(req: Request) throws -> EventLoopFuture<Article.Public> {
+    private func createArticle(req: Request) async throws -> Article.Public {
+        struct Body: Content {
+            var title: String
+            var contentKey: String
+        }
+        
         let user = try req.auth.require(User.self)
         
         guard let userId = user.id else {
-            return req.eventLoop.future(error: Abort(.unauthorized))
+            throw Abort(.unauthorized)
         }
                     
-        let articleCreation = try req.content.decode(Article.Creation.self)
+        let body = try req.content.decode(Body.self)
         
-        let newBlogPost = try Article.create(with: articleCreation, authorId: userId)
+        let article = try ArticleBuilder().setAuthorId(to: userId)
+            .setTitle(to: body.title)
+            .setContentKey(to: body.contentKey)
+            .build()
         
-        return newBlogPost.save(on: req.db)
-            .flatMapThrowing {
-                return try newBlogPost.asPublic()
-            }
+        try await article.save(on: req.db)
+        
+        return try article.publicRepresentation
     }
     
-    private func getArticle(req: Request) throws -> EventLoopFuture<Article.Public> {
+    private func getArticle(req: Request) async throws -> Article.Public {
         guard let idString = req.parameters.get("id") else {
-            return req.eventLoop.future(error: Abort(.badRequest))
+            throw Abort(.badRequest)
         }
         
         guard let id = UUID(idString) else {
-            return req.eventLoop.future(error: Abort(.internalServerError))
+            throw Abort(.internalServerError)
         }
                 
-        return Article.query(on: req.db)
+        let article = try await Article.query(on: req.db)
             .filter(\.$id == id)
             .first()
-            .unwrap(or: Abort(.notFound))
-            .flatMapThrowing { unwrappedArticle in
-                return try unwrappedArticle.asPublic()
-            }
+            .get()
+        
+        guard let article = article else {
+            throw Abort(.notFound)
+        }
+        
+        return try article.publicRepresentation
     }
     
-    private func getAllArticles(req: Request) throws -> EventLoopFuture<[Article.Public]> {
-        Article.query(on: req.db)
+    private func getAllArticles(req: Request) async throws -> [Article.Public] {
+        let articles = try await Article.query(on: req.db)
             .all()
-            .flatMapThrowing { articles in
-                return try articles.map { try $0.asPublic() }
-            }
+            .get()
+        
+        return try articles.map { try $0.publicRepresentation }
     }
     
-    private func getMyArticles(req: Request) throws -> EventLoopFuture<[Article.Public]> {
+    private func getMyArticles(req: Request) async throws -> [Article.Public] {
         let user = try req.auth.require(User.self)
         
         guard let userId = user.id else {
-            return req.eventLoop.future(error: Abort(.unauthorized))
+            throw Abort(.unauthorized)
         }
         
-        return Article.query(on: req.db)
+        let articles = try await Article.query(on: req.db)
             .filter(\.$author.$id == userId)
             .all()
-            .flatMapThrowing { blogPosts in
-                return try blogPosts.map { try $0.asPublic() }
-            }
+            .get()
+        
+        return try articles.map { try $0.publicRepresentation }
     }
 }

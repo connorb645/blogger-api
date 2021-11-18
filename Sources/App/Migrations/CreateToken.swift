@@ -1,5 +1,5 @@
 //
-//  CreateToken.swift
+//  CreateAccessToken.swift
 //  
 //
 //  Created by Connor Black on 30/09/2021.
@@ -13,12 +13,14 @@ struct CreateToken: Migration {
     func prepare(on database: Database) -> EventLoopFuture<Void> {
         database.schema(Token.schema)
             .id()
-            .field(Token.Fields.userId.rawValue, .uuid, .references(User.schema, .id))
-            .field(Token.Fields.value.rawValue, .string, .required)
-            .unique(on: Token.Fields.value.rawValue)
-            .field(Token.Fields.source.rawValue, .int, .required)
-            .field(Token.Fields.createdAt.rawValue, .datetime, .required)
-            .field(Token.Fields.expiresAt.rawValue, .datetime)
+            .field("user_id", .uuid, .references(User.schema, .id), .required)
+            .field("value", .string, .required)
+            .field("token_type", .int, .required)
+            .field("created_at", .datetime, .required)
+            .field("expires_at", .datetime, .required)
+            .field("updated_at", .datetime, .required)
+        
+            .unique(on: "value")
             .create()
     }
     

@@ -1,0 +1,82 @@
+# Mobile Handover
+
+## Access
+
+- [x]  App Center
+- [x]  App Store Connect
+- [x]  Google Play Console
+- [x]  Figma
+- [x]  Miro
+- [x]  Bitbucket
+
+## Documentation
+
+- Meeting Recording links
+    - Stored in OneDrive
+- Sync process
+    - ***The sync should only be started via the TriggerSync method within ISyncAndAutoSaveCoordinator.*** The reason for this is we use a SemaphoreSlim to protect access to SQLite. Basically we ensure that the sync wont be taking place at the same time as updating any audits, otherwise we would end up with weird and horrible race conditions.
+    - When the TriggerSync method is called, the platform which the user is running will listen for the notification event it triggers (listening in AppDelegate for iOS, and MainActivity for Android). The platform will then trigger a background task in its own unique way, with the result effectively being that the BeginSync method gets triggered within ISyncHandler.
+    - Audits: The sync process will fetch audits from the server, and push created or updated audits to the server. The mind map below can detail the process of sending and retrieving audits. It by far the most complex aspect of the sync on A&I.
+    - FormTemplates: The sync process will fetch any form templates required for the user, and save them locally.
+    - Global Lists: It will then loop through each form template and fetch any corresponding Global Lists that it requires.
+    - Org Charts: The final fetch step, is looping through the users companies and retrieving any corresponding Org Chart structures it needs.
+    - Result: After the sync is complete, AISyncResponse is returned. This object contains results and some meta details for each of the sync partitions. an AuditsSyncSectionResponse will return if it failed overall, if any individual audits failed to sync, and all of the successfully sync audits. The FormTemplatesSyncSectionResponse, GlobalListsSyncSectionResponse, and the OrgChartSyncSectionResponse, all return a basic overall failure or success response, this could be improved if features require it to be.
+    - Mind Map - this may need to be updated slightly to reflect changes made by Vica.
+        
+        ![Screenshot 2021-09-06 at 10.44.51.png](Mobile%20Handover%209514b362f7dc44508c9a367744f9d497/Screenshot_2021-09-06_at_10.44.51.png)
+        
+        ![Screenshot 2021-09-06 at 10.43.52.png](Mobile%20Handover%209514b362f7dc44508c9a367744f9d497/Screenshot_2021-09-06_at_10.43.52.png)
+        
+        ![Screenshot 2021-09-06 at 10.46.05.png](Mobile%20Handover%209514b362f7dc44508c9a367744f9d497/Screenshot_2021-09-06_at_10.46.05.png)
+        
+        ![Screenshot 2021-09-06 at 10.47.32.png](Mobile%20Handover%209514b362f7dc44508c9a367744f9d497/Screenshot_2021-09-06_at_10.47.32.png)
+        
+- App Diagnostics
+    - App diagnostics are probably not as "flushed out" as the name might suggest. Basically the reason for implementing the diagnostics was due to having some incidents getting stuck on the users device, ie. failing to send to the server. This was notoriously difficult to debug, since we were unable to see what the user had entered and what might have been causing it to fail (we couldn't find any decent server logs either). So the Diagnostics screen (tap on the version code 5 times in quick succession), will enable the user to send a json "dump" **(for lack of a better word) of their incidents, or audits that need to sync with the server. This will be sent to an AWS Dynamo db table called 'diagnostics', which can then be further investigated as you wish.
+    - The Diagnostics screen will also enable you to quickly view the environment the app is pointing. Beware on IM though, the environment is persisted, therefore running on cloud-test, then immediately running on cloud, you would likely see cloud-test still. The reason for this is, is due to a feature implemented where the server can dynamically introduce a new base url for a company.
+    - There is also a clear cache button on the diagnostics screen, which can be used in development or in the last case scenario for users who have stuck incidents, and we can't figure out what is wrong.
+- Localisation
+    - Incident Management is so far the only app to have localisations implemented. Now that it is implemented, it's very straight forward adding a new language. Simply all we would need to do is create a new .resx file and insert all of the values in the corresponding language.
+    - **When adding new implementations on IM, we must remember to get and text translated into all of the languages we support.** The strings should be embedded into either C# or XAML using the StaticResource property, specifying the key for the string you would like within the .resx files.
+    - There is an auto-generated class for each .resx file, suffixed with "Designer.cs". Because we are storing the .resx files in a shared project, we need to ensure these methods are all public otherwise you will face a bunch of compiler errors. For some reason, Visual Studios for Mac seems to want to generate these methods as internal, so it forces me to keep changing it manually unfortunately.
+    - Helpful Links
+        - [https://docs.microsoft.com/en-us/xamarin/xamarin-forms/app-fundamentals/localization/text?pivots=macos](https://docs.microsoft.com/en-us/xamarin/xamarin-forms/app-fundamentals/localization/text?pivots=macos)
+- App Architecture
+    - Xamarin.Forms strongly encourages Model View ViewModel and so I've attempted to stick to this pattern as closely as possible throughout both apps. The View should contain the view logic, the View Model should contain any related business logic and bindings should be used for events, and data display.
+    - In places in A&I, we use a slightly more reactive approach, reactive programming can be super helpful for reducing code complexity. One such place is when searching for items in a list, we can use a throttle operator to wait a few seconds before calling a method, which will then be throttled if the parameter changes again. This effectively stops us from performing an extensive search query each time the user types a character into the search bar.
+    - I have also used an observable pattern in places, primarily the Sync so that we can listen for sync start events, and sync processing events.
+    - The solution has a few projects, the whole solution is everything for both A&I and IM, including shared projects for code sharing.
+        - **Shared Projects:** IM.Managers, IM.Data, IM.Data.Tests, IM.Common
+        - **Audits and Inspections Specific:** AI, AI.iOS, AI.Android, AI.UITests, AI.UnitTests
+        - **Incident Management Specific:** IM, IM.iOS, IM.Android, IM.UITests
+    - Useful Links
+        - [https://docs.microsoft.com/en-us/xamarin/xamarin-forms/enterprise-application-patterns/mvvm](https://docs.microsoft.com/en-us/xamarin/xamarin-forms/enterprise-application-patterns/mvvm)
+        - [https://www.reactiveui.net](https://www.reactiveui.net/)
+        - [http://reactivex.io](http://reactivex.io/)
+- Releasing Apps Manually
+    - **It's so important to ensure the BASE URL is pointing to production before releasing!** Otherwise no one will be able to do anything on the apps. This step is now automated based on the selected scheme in Visual Studio, and using scheme pre-compiler flags to determine which Base URL to point to.
+    - Semantic Versioning: I use semantic versioning for the apps. The version numbers should equate on Incident Management across Android and iOS, and on Audits and Inspections across Android and iOS. This will help keep release cycles clean and ordered, and also it will provide clarity when users submit issues, so you can simply ask their version number and you can know what was changed in both platforms for that release by looking at git versioning.
+        - [https://semver.org](https://semver.org/) - Semantic Versioning
+    - I would suggest always doing both Android and iOS releases, every time you release, this way we can always keep their versions the same.
+    - I have created a KANBAN board that covers all of the steps for releasing to both platforms, and in what order the steps should occur. (link to KANBAN)
+- App Center
+    - App Center can be used to **create** and **distribute** **internal** and **production** builds. A CI/CD pipeline has been configured for both operating systems, for both apps, and for the develop branch, the preprod branch and the master branch.
+    - **develop:** When we work on tickets using feature branches, we then create a pull request to have that feature branch merged into develop. Once approved, merged and pushed to the origin, App Center will automatically start the build and distribution of an internal application pointing to "cloud-test". The build will be distributed to an App Center group called Cloud Test within each of the apps.
+    - **preprod:** When we have merged a feature branch into the develop branch App Center will automatically start the build and distribution of an internal application pointing to "cloud-uat-preprod". The build will be distributed to an App Center group called Cloud Preprod within each of the apps.
+    - **master:** When we merge our changes from preprod to master App Center will start the build and disrtibution of an external production application pointing to "cloud". The iOS version will be submitted to TestFlight, and the Android version will be submitted to a beta testing track on Google Play Console. Once the builds are verified and ready to be submitted, on iOS we simply need to add the "What's new in this version" and then submit for review. On Android we simply need to progress the build from beta testing into production and then attach release notes before submitting to review.
+    - Crashes / Analytics
+        - App Center will detect Crashes automatically. But it can also be used to catch errors explicitly (usually within a catch statement). This is useful when you expect something could go wrong in your code, so you use a try-catch, but you would also like App Center to give you logs in such cases. More information about tracking explicit errors can be found at [https://docs.microsoft.com/en-us/appcenter/errors/](https://docs.microsoft.com/en-us/appcenter/errors/)
+        - App Center provides a mechanism to track analytics within the app, Analytics pretty much interesting events which occur within the application. I have used them extensively throughout the A&I application sync process. More information about then can be found at [https://docs.microsoft.com/en-us/appcenter/analytics/](https://docs.microsoft.com/en-us/appcenter/analytics/)
+        - App Center is super powerful and can be used for way more than im currently using it for. The whole documentation can be found at [https://docs.microsoft.com/en-us/appcenter/](https://docs.microsoft.com/en-us/appcenter/)
+    - Pipeline Settings
+        - The configuration of the build pipelines are done. However should anything need to be changed (such as the yearly provisioning profiles and certs on iOS) then here is a useful video I used when configuring the build pipeline settings: [https://www.youtube.com/watch?v=UpkB1InXo9w](https://www.youtube.com/watch?v=UpkB1InXo9w)
+- Figma for application assets and screenshots
+    - Figma is the design tool I have used for creating assets for both applications and also creating the screenshots for the store listings (both iOS and Android). They will need to be kept up-to-date with latest application enhancements and features, and then modified on the store listings upon the next release.
+- 1Password
+    - 1Password is the tool the company uses to keep files and passwords safe. Some important information that it currently contains with regard to the applications are the following...
+        - Android Keystore for Incident Management (Don't lose this)
+        - Android Keystore for Audits and Inspections (Don't lose this)
+- iOS Provisioning Profiles and Certificates
+    - Provisioning Profiles and Certificates on iOS are a seemingly complex beast, but are simple enough over time. I won't try to explain this in too much detail here but will leave a link which will explain them: [https://www.youtube.com/watch?v=Ys2p5bFhgjI](https://www.youtube.com/watch?v=Ys2p5bFhgjI)**.**
+- Android KeyStore
+    - The Keystore is a similar concept but for android. One huge difference though, is that if lost, it's game over... no more releases to that store listing. So don't lose this for either of the apps. Here is a video explaining the concept, explained in lego (weird!): [https://www.youtube.com/watch?v=3lDtAf8Jk_c](https://www.youtube.com/watch?v=3lDtAf8Jk_c)

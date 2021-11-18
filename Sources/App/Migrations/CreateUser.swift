@@ -13,13 +13,15 @@ struct CreateUser: Migration {
     func prepare(on database: Database) -> EventLoopFuture<Void> {
         database.schema(User.schema)
             .id()
-            .field(User.Fields.firstName.rawValue, .string, .required)
-            .field(User.Fields.secondName.rawValue, .string, .required)
-            .field(User.Fields.emailAddress.rawValue, .string, .required)
-            .unique(on: User.Fields.emailAddress.rawValue)
-            .field(User.Fields.passwordHash.rawValue, .string, .required)
-            .field(User.Fields.createdAt.rawValue, .datetime, .required)
-            .field(User.Fields.updatedAt.rawValue, .datetime, .required)
+            .field("first_name", .string, .required)
+            .field("second_name", .string, .required)
+            .field("email_address", .string, .required)
+            .field("password_hash", .string, .required)
+            .field("created_at", .datetime, .required)
+            .field("updated_at", .datetime, .required)
+            .field("profile_picture_key", .string, .required)
+        
+            .unique(on: "email_address")
             .create()
     }
     
